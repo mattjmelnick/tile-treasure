@@ -1,0 +1,13 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build tile-treasure",
+            "command": "make tile-treasure",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+        }
+    ],
+    "version": "2.0.0"
+}
