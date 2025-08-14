@@ -1,5 +1,10 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <random>
+#include <chrono>
 
 const int screenWidth = 1000;
 const int screenHeight = 600;
@@ -12,10 +17,14 @@ const int frameThickness = 3;
 int startX = (screenWidth - boardSize - 300) / 2;
 int startY = (screenHeight - boardSize - 50) / 2;
 
+void randomizeWeights();
+
 int main(void)
 {
     InitWindow(screenWidth + 200, screenHeight + 200, "Tile Treasure");
     SetTargetFPS(60);
+
+    randomizeWeights();
 
     while (!WindowShouldClose())
     {
@@ -52,4 +61,35 @@ int main(void)
     CloseWindow();
 
     return 0;
+}
+
+void randomizeWeights()
+{
+    std::vector<int> weights = {1, 2, 3, 4};
+    std::vector<int> weightsVector;
+
+    // fill with copies of weights
+    for (int i : weights)
+    {
+        for (int j = 0; j < 15; j++)
+        {
+            weightsVector.push_back(i);
+        }
+    }
+
+    // for (int n : weightsVector)
+    // {
+    //     std::cout << n << ' ';
+    // }
+    // std::cout << std::endl;
+
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine generator(seed);
+    std::shuffle(weightsVector.begin(), weightsVector.end(), generator);
+
+    // for (int n : weightsVector)
+    // {
+    //     std::cout << n << ' ';
+    // }
+    // std::cout << std::endl;
 }
