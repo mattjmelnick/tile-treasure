@@ -32,20 +32,21 @@ struct BoardSquare
     bool visited = false;
 };
 
-std::vector<int> createWeightsVector();
-std::vector<int> createValuesVector();
-std::vector<int> randomizeVector(std::vector<int> vector);
+std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances);
+void randomizeVector(std::vector<int> &vector);
 
 int main(void)
 {
     InitWindow(SCREEN_WIDTH + 200, SCREEN_HEIGHT + 200, "Tile Treasure");
     SetTargetFPS(60);
 
-    std::vector<int> valuesVector = createValuesVector();
-    std::vector<int> weightsVector = createWeightsVector();
+    std::vector<int> values = {-4, -2, 2, 4, 6, 8};
+    std::vector<int> weights = {1, 2, 3, 4};
+    std::vector<int> valuesVector = createIntVector(values, 10);
+    std::vector<int> weightsVector = createIntVector(weights, 15);
 
-    valuesVector = randomizeVector(valuesVector);
-    weightsVector = randomizeVector(weightsVector);
+    randomizeVector(valuesVector);
+    randomizeVector(weightsVector);
 
     std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
 
@@ -99,6 +100,11 @@ int main(void)
 
                 // add value text to the squares
                 std::string valueText = std::to_string(board[row][col].value);
+                if ((row == 1 && col == 1) ||
+                    (row == 1 && col == 6) ||
+                    (row == 6 && col == 1) ||
+                    (row == 6 && col == 6))
+                    valueText = "";
                 int valueTextWidth = MeasureText(valueText.c_str(), 25);
                 int valueTextX = posX + (SQUARE_SIZE / 2) - (valueTextWidth / 2);
                 int valueTextY = posY + (SQUARE_SIZE / 2) - 16;
@@ -106,6 +112,11 @@ int main(void)
 
                 // add weight text to the squares
                 std::string weightText = std::to_string(board[row][col].weight);
+                if ((row == 1 && col == 1) ||
+                    (row == 1 && col == 6) ||
+                    (row == 6 && col == 1) ||
+                    (row == 6 && col == 6))
+                    weightText = "";
                 int weightTextWidth = MeasureText(weightText.c_str(), 15);
                 int weightTextX = posX + (SQUARE_SIZE / 2) - (weightTextWidth / 2);
                 int weightTextY = posY + (SQUARE_SIZE / 2) + 8;
@@ -129,44 +140,24 @@ int main(void)
     return 0;
 }
 
-std::vector<int> createWeightsVector()
+std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances)
 {
-    std::vector<int> weights = {1, 2, 3, 4};
-    std::vector<int> weightsVector;
+    std::vector<int> intVector;
 
-    // fill with copies of weights
-    for (int i : weights)
+    for (int i : vector)
     {
-        for (int j = 0; j < 15; j++)
+        for (int j = 0; j < numOfInstances; j++)
         {
-            weightsVector.push_back(i);
+            intVector.push_back(i);
         }
     }
 
-    return weightsVector;
+    return intVector;
 }
 
-std::vector<int> createValuesVector()
-{
-    std::vector<int> values = {-4, -2, 2, 4, 6, 8};
-    std::vector<int> valuesVector;
-
-    for (int i : values)
-    {
-        for (int j = 0; j < 10; j++)
-        {
-            valuesVector.push_back(i);
-        }
-    }
-
-    return valuesVector;
-}
-
-std::vector<int> randomizeVector(std::vector<int> vector)
+void randomizeVector(std::vector<int> &vector)
 {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator(seed);
     std::shuffle(vector.begin(), vector.end(), generator);
-
-    return vector;
 }
