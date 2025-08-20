@@ -14,13 +14,11 @@ const int SQUARE_SIZE = 50;
 const int BORDER_WIDTH = 1;
 const int FRAME_THICKNESS = 3;
 const int BOARD_OFFSET = (SCREEN_WIDTH - (BOARD_SIZE * SQUARE_SIZE) - 400) / 2;
+const int MAX_WEIGHT = 24;
 
 // board's starting position
 int startX = BOARD_OFFSET;
 int startY = BOARD_OFFSET;
-
-std::vector<int> values = {-4, -2, 2, 4, 6, 8};
-std::vector<int> weights = {1, 2, 3, 4};
 
 struct BoardSquare
 {
@@ -35,6 +33,32 @@ struct BoardSquare
     bool visited = false;
 };
 
+struct GamePiece
+{
+    int row;
+    int col;
+    float radius;
+    Color color;
+    int capacity = MAX_WEIGHT;
+    int currentWeight;
+    int score;
+
+    Vector2 getPosition(const BoardSquare &square) const
+    {
+        return {square.posX + square.width / 2.0f,
+                square.posY + square.height / 2.0f};
+    }
+};
+
+std::vector<int> values = {-4, -2, 2, 4, 6, 8};
+std::vector<int> weights = {1, 2, 3, 4};
+std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
+
+GamePiece p1 = {1, 1, 20.0f, RED, 0, 0};
+
+GamePiece *selectedPiece = nullptr;
+bool dragging = false;
+
 // function forward declarations
 std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances);
 void randomizeVector(std::vector<int> &vector);
@@ -44,6 +68,9 @@ void drawSquareText(int boardSquareInt, int row, int col,
 void drawBoard(std::vector<std::vector<BoardSquare>> &board);
 void drawBoardFrame();
 
+bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
+void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH + 200, SCREEN_HEIGHT + 200, "Tile Treasure");
@@ -51,20 +78,66 @@ int main(void)
 
     std::vector<int> valuesVector = createIntVector(values, 10);
     std::vector<int> weightsVector = createIntVector(weights, 15);
-
     randomizeVector(valuesVector);
     randomizeVector(weightsVector);
 
-    std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
     fillBoard(board, valuesVector, weightsVector);
 
     while (!WindowShouldClose())
     {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            Vector2 mouse = GetMousePosition();
+            Vector2 piecePos = p1.getPosition(board[p1.row][p1.col]);
+
+            if (CheckCollisionPointCircle(mouse, piecePos, p1.radius))
+            {
+                selectedPiece = &p1;
+                dragging = true;
+            }
+        }
+
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && dragging && selectedPiece)
+        {
+            Vector2 mouse = GetMousePosition();
+
+            for (int r = 0; r < board.size(); r++)
+            {
+                for (int c = 0; c < board[r].size(); c++)
+                {
+                    BoardSquare &sq = board[r][c];
+
+                    Rectangle rect = {(float)sq.posX,
+                                      (float)sq.posY,
+                                      (float)sq.width,
+                                      (float)sq.height};
+
+                    if (CheckCollisionPointRec(mouse, rect))
+                    {
+                        movePiece(*selectedPiece, board, r, c);
+                        break;
+                    }
+                }
+            }
+
+            selectedPiece = nullptr;
+            dragging = false;
+        }
+
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
         drawBoard(board);
         drawBoardFrame();
+
+        if (!dragging || selectedPiece != &p1)
+            drawPiece(p1, board);
+
+        if (dragging && selectedPiece)
+        {
+            Vector2 mouse = GetMousePosition();
+            DrawCircleV(mouse, selectedPiece->radius, selectedPiece->color);
+        }
 
         EndDrawing();
     }
@@ -178,4 +251,37 @@ void drawBoardFrame()
         (float)((BOARD_SIZE * SQUARE_SIZE) + 2 * FRAME_THICKNESS),
         (float)((BOARD_SIZE * SQUARE_SIZE) + 2 * FRAME_THICKNESS)};
     DrawRectangleLinesEx(frameRect, FRAME_THICKNESS, BLACK);
+}
+
+bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
+{
+    if (newRow < 0 || newRow >= (int)board.size() ||
+        newCol < 0 || newCol >= (int)board[newRow].size())
+        return false;
+
+    BoardSquare &destSquare = board[newRow][newCol];
+
+    if (std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
+        return false;
+
+    if (!destSquare.visited && piece.currentWeight + destSquare.weight <= piece.capacity)
+    {
+        piece.currentWeight += destSquare.weight;
+        piece.score += destSquare.value;
+        destSquare.visited = true;
+    }
+
+    piece.row = newRow;
+    piece.col = newCol;
+
+    return true;
+}
+
+void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
+{
+    BoardSquare &sq = board[piece.row][piece.col];
+    Vector2 pos = {
+        sq.posX + sq.width / 2.0f,
+        sq.posY + sq.height / 2.0f};
+    DrawCircleV(pos, piece.radius, piece.color);
 }
