@@ -31,6 +31,7 @@ struct BoardSquare
     int value;
     int weight;
     bool visited = false;
+    Color color = BEIGE;
 };
 
 struct GamePiece
@@ -39,7 +40,7 @@ struct GamePiece
     int col;
     float radius;
     Color color;
-    int capacity = MAX_WEIGHT;
+    int capacity;
     int currentWeight;
     int score;
 
@@ -54,7 +55,7 @@ std::vector<int> values = {-4, -2, 2, 4, 6, 8};
 std::vector<int> weights = {1, 2, 3, 4};
 std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
 
-GamePiece p1 = {1, 1, 20.0f, RED, 0, 0};
+GamePiece p1 = {1, 1, 20.0f, RED, MAX_WEIGHT, 0, 0};
 
 GamePiece *selectedPiece = nullptr;
 bool dragging = false;
@@ -101,9 +102,9 @@ int main(void)
         {
             Vector2 mouse = GetMousePosition();
 
-            for (int r = 0; r < board.size(); r++)
+            for (int r = 0; r < BOARD_SIZE; r++)
             {
-                for (int c = 0; c < board[r].size(); c++)
+                for (int c = 0; c < BOARD_SIZE; c++)
                 {
                     BoardSquare &sq = board[r][c];
 
@@ -137,6 +138,9 @@ int main(void)
         {
             Vector2 mouse = GetMousePosition();
             DrawCircleV(mouse, selectedPiece->radius, selectedPiece->color);
+            DrawCircleLinesV(mouse, selectedPiece->radius, BLACK);
+            DrawCircleLinesV(mouse, selectedPiece->radius + 0.5, BLACK);
+            DrawCircleLinesV(mouse, selectedPiece->radius + 1, BLACK);
         }
 
         EndDrawing();
@@ -186,6 +190,7 @@ void fillBoard(std::vector<std::vector<BoardSquare>> &board,
                 (row == 6 && col == 1) ||
                 (row == 6 && col == 6))
             {
+                board[row][col].visited = true;
                 continue;
             }
 
@@ -221,8 +226,6 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board)
     {
         for (int col = 0; col < BOARD_SIZE; col++)
         {
-            Color squareColor = BEIGE;
-
             int posX = startX + (col * SQUARE_SIZE);
             int posY = startY + (row * SQUARE_SIZE);
 
@@ -230,7 +233,7 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board)
             board[row][col].posY = posY;
 
             // draw the square and add a border
-            DrawRectangle(posX, posY, SQUARE_SIZE, SQUARE_SIZE, squareColor);
+            DrawRectangle(posX, posY, SQUARE_SIZE, SQUARE_SIZE, board[row][col].color);
             DrawRectangleLinesEx((Rectangle){(float)posX, (float)posY, (float)SQUARE_SIZE, (float)SQUARE_SIZE}, BORDER_WIDTH, BLACK);
 
             // add value text to the squares
@@ -255,26 +258,23 @@ void drawBoardFrame()
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
 {
-    if (newRow < 0 || newRow >= (int)board.size() ||
-        newCol < 0 || newCol >= (int)board[newRow].size())
-        return false;
-
     BoardSquare &destSquare = board[newRow][newCol];
 
-    if (std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
+    if (destSquare.visited || std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
         return false;
 
-    if (!destSquare.visited && piece.currentWeight + destSquare.weight <= piece.capacity)
+    if (!destSquare.visited && (piece.currentWeight + destSquare.weight <= piece.capacity))
     {
         piece.currentWeight += destSquare.weight;
         piece.score += destSquare.value;
         destSquare.visited = true;
+        destSquare.color = piece.color;
+        piece.row = newRow;
+        piece.col = newCol;
+        return true;
     }
 
-    piece.row = newRow;
-    piece.col = newCol;
-
-    return true;
+    return false;
 }
 
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
@@ -284,4 +284,7 @@ void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
         sq.posX + sq.width / 2.0f,
         sq.posY + sq.height / 2.0f};
     DrawCircleV(pos, piece.radius, piece.color);
+    DrawCircleLinesV(pos, piece.radius, BLACK);
+    DrawCircleLinesV(pos, piece.radius + 0.5, BLACK);
+    DrawCircleLinesV(pos, piece.radius + 1, BLACK);
 }
