@@ -55,6 +55,9 @@ std::vector<int> values = {-4, -2, 2, 4, 6, 8};
 std::vector<int> weights = {1, 2, 3, 4};
 std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
 
+const std::array<int, 8> DIRECTION_ROWS_8 = {-1, -1, -1, 0, 0, 1, 1, 1};
+const std::array<int, 8> DIRECTION_COLS_8 = {-1, 0, 1, -1, 1, -1, 0, 1};
+
 GamePiece p1 = {1, 1, 20.0f, RED, MAX_WEIGHT, 0, 0};
 
 GamePiece *selectedPiece = nullptr;
@@ -71,6 +74,10 @@ void drawBoardFrame();
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
+
+int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
+                        const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
+                        int row, int col);
 
 int main(void)
 {
@@ -115,7 +122,13 @@ int main(void)
 
                     if (CheckCollisionPointRec(mouse, rect))
                     {
-                        movePiece(*selectedPiece, board, r, c);
+                        bool movable = movePiece(*selectedPiece, board, r, c);
+
+                        if (movable)
+                        {
+                            int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
+                            // std::cout << remainingMoves << "\n";
+                        }
                         break;
                     }
                 }
@@ -287,4 +300,27 @@ void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
     DrawCircleLinesV(pos, piece.radius, BLACK);
     DrawCircleLinesV(pos, piece.radius + 0.5, BLACK);
     DrawCircleLinesV(pos, piece.radius + 1, BLACK);
+}
+
+int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
+                        const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
+                        int row, int col)
+{
+    int remainingMoves = 0;
+    int legalMove = 0;
+
+    for (int i = 0; i < 8; i++)
+    {
+        int destRow = row + DIRECTION_ROWS_8[i];
+        int destCol = col + DIRECTION_COLS_8[i];
+
+        if (destRow >= 0 && destRow < BOARD_SIZE &&
+            destCol >= 0 && destCol < BOARD_SIZE)
+        {
+            legalMove = board[destRow][destCol].visited ? 0 : 1;
+            remainingMoves += legalMove;
+        }
+    }
+
+    return remainingMoves;
 }
