@@ -10,10 +10,10 @@
 const int SCREEN_WIDTH = 1000;
 const int SCREEN_HEIGHT = 600;
 const int BOARD_SIZE = 8;
-const int SQUARE_SIZE = 50;
+const int SQUARE_SIZE = 70;
 const int BORDER_WIDTH = 1;
 const int FRAME_THICKNESS = 3;
-const int BOARD_OFFSET = (SCREEN_WIDTH - (BOARD_SIZE * SQUARE_SIZE) - 400) / 2;
+const int BOARD_OFFSET = (SCREEN_WIDTH - (BOARD_SIZE * SQUARE_SIZE) - 300) / 2;
 const int MAX_WEIGHT = 24;
 
 // board's starting position
@@ -58,7 +58,7 @@ std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>
 const std::array<int, 8> DIRECTION_ROWS_8 = {-1, -1, -1, 0, 0, 1, 1, 1};
 const std::array<int, 8> DIRECTION_COLS_8 = {-1, 0, 1, -1, 1, -1, 0, 1};
 
-GamePiece p1 = {1, 1, 20.0f, RED, MAX_WEIGHT, 0, 0};
+GamePiece p1 = {1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0};
 
 GamePiece *selectedPiece = nullptr;
 bool dragging = false;
@@ -143,6 +143,8 @@ int main(void)
 
         drawBoard(board);
         drawBoardFrame();
+
+        // TODO: create drawGameTable function to track values and weights of game pieces
 
         if (!dragging || selectedPiece != &p1)
             drawPiece(p1, board);
@@ -250,10 +252,10 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board)
             DrawRectangleLinesEx((Rectangle){(float)posX, (float)posY, (float)SQUARE_SIZE, (float)SQUARE_SIZE}, BORDER_WIDTH, BLACK);
 
             // add value text to the squares
-            drawSquareText(board[row][col].value, row, col, 25, posX, posY, 16);
+            drawSquareText(board[row][col].value, row, col, 30, posX, posY, 20);
 
             // add weight text to the squares
-            drawSquareText(board[row][col].weight, row, col, 15, posX, posY, -8);
+            drawSquareText(board[row][col].weight, row, col, 20, posX, posY, -10);
         }
     }
 }
