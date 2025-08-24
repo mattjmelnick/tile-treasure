@@ -15,6 +15,8 @@ const int BORDER_WIDTH = 1;
 const int FRAME_THICKNESS = 3;
 const int BOARD_OFFSET = (SCREEN_WIDTH - (BOARD_SIZE * SQUARE_SIZE) - 300) / 2;
 const int MAX_WEIGHT = 24;
+const int TABLE_WIDTH = 350;
+const int TABLE_HEIGHT = 500;
 
 // board's starting position
 int startX = BOARD_OFFSET;
@@ -72,7 +74,10 @@ void drawSquareText(int boardSquareInt, int row, int col,
 void drawBoard(std::vector<std::vector<BoardSquare>> &board);
 void drawBoardFrame();
 
+void drawGameTable();
+
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
+void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
 
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
@@ -143,6 +148,7 @@ int main(void)
 
         drawBoard(board);
         drawBoardFrame();
+        drawGameTable();
 
         // TODO: create drawGameTable function to track values and weights of game pieces
 
@@ -152,10 +158,7 @@ int main(void)
         if (dragging && selectedPiece)
         {
             Vector2 mouse = GetMousePosition();
-            DrawCircleV(mouse, selectedPiece->radius, selectedPiece->color);
-            DrawCircleLinesV(mouse, selectedPiece->radius, BLACK);
-            DrawCircleLinesV(mouse, selectedPiece->radius + 0.5, BLACK);
-            DrawCircleLinesV(mouse, selectedPiece->radius + 1, BLACK);
+            addOutline(mouse, *selectedPiece);
         }
 
         EndDrawing();
@@ -271,6 +274,17 @@ void drawBoardFrame()
     DrawRectangleLinesEx(frameRect, FRAME_THICKNESS, BLACK);
 }
 
+void drawGameTable()
+{
+    DrawRectangle(((SCREEN_WIDTH / 2) + 250), startY, TABLE_WIDTH, TABLE_HEIGHT, BEIGE);
+    Rectangle frameRect = {
+        (float)(((SCREEN_WIDTH / 2) + 250) - (FRAME_THICKNESS + 1)),
+        (float)(startY - (FRAME_THICKNESS + 1)),
+        (float)((TABLE_WIDTH) + 2 * (FRAME_THICKNESS + 1)),
+        (float)((TABLE_HEIGHT) + 2 * (FRAME_THICKNESS + 1))};
+    DrawRectangleLinesEx(frameRect, (FRAME_THICKNESS + 1), BLACK);
+}
+
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
 {
     BoardSquare &destSquare = board[newRow][newCol];
@@ -292,16 +306,21 @@ bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, i
     return false;
 }
 
+void addOutline(Vector2 position, GamePiece &piece)
+{
+    DrawCircleV(position, piece.radius, piece.color);
+    DrawCircleLinesV(position, piece.radius, BLACK);
+    DrawCircleLinesV(position, piece.radius + 0.5, BLACK);
+    DrawCircleLinesV(position, piece.radius + 1, BLACK);
+}
+
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
 {
     BoardSquare &sq = board[piece.row][piece.col];
     Vector2 pos = {
         sq.posX + sq.width / 2.0f,
         sq.posY + sq.height / 2.0f};
-    DrawCircleV(pos, piece.radius, piece.color);
-    DrawCircleLinesV(pos, piece.radius, BLACK);
-    DrawCircleLinesV(pos, piece.radius + 0.5, BLACK);
-    DrawCircleLinesV(pos, piece.radius + 1, BLACK);
+    addOutline(pos, piece);
 }
 
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
