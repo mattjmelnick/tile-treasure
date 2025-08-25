@@ -55,6 +55,7 @@ struct GamePiece
 
 std::vector<int> values = {-4, -2, 2, 4, 6, 8};
 std::vector<int> weights = {1, 2, 3, 4};
+
 std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
 
 const std::array<int, 8> DIRECTION_ROWS_8 = {-1, -1, -1, 0, 0, 1, 1, 1};
@@ -127,9 +128,9 @@ int main(void)
 
                     if (CheckCollisionPointRec(mouse, rect))
                     {
-                        bool movable = movePiece(*selectedPiece, board, r, c);
+                        bool isMovable = movePiece(*selectedPiece, board, r, c);
 
-                        if (movable)
+                        if (isMovable)
                         {
                             int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
                             // std::cout << remainingMoves << "\n";
@@ -149,8 +150,6 @@ int main(void)
         drawBoard(board);
         drawBoardFrame();
         drawGameTable();
-
-        // TODO: create drawGameTable function to track values and weights of game pieces
 
         if (!dragging || selectedPiece != &p1)
             drawPiece(p1, board);
@@ -276,6 +275,7 @@ void drawBoardFrame()
 
 void drawGameTable()
 {
+    // main table window
     DrawRectangle(((SCREEN_WIDTH / 2) + 250), startY, TABLE_WIDTH, TABLE_HEIGHT, BEIGE);
     Rectangle frameRect = {
         (float)(((SCREEN_WIDTH / 2) + 250) - (FRAME_THICKNESS + 1)),
@@ -283,6 +283,34 @@ void drawGameTable()
         (float)((TABLE_WIDTH) + 2 * (FRAME_THICKNESS + 1)),
         (float)((TABLE_HEIGHT) + 2 * (FRAME_THICKNESS + 1))};
     DrawRectangleLinesEx(frameRect, (FRAME_THICKNESS + 1), BLACK);
+
+    // TODO: create playerTableInfo function for integers in playerPositions struct to get player x/y coordinates
+    // player information (local function variables)
+    float underlineThickness = 2.0f;
+    float underlineOffset = 3.0f;
+    int playerFontSize = 25;
+    int playerValueFontSize = 20;
+
+    // pass in playerPositions struct, player name string, player game piece
+    std::string p1Text = "Player 1";
+    Vector2 p1TextPosition = {(float)((SCREEN_WIDTH / 2) + 280), (float)(startY + 25)};
+    Vector2 p1TextUnderlineStart = {p1TextPosition.x, p1TextPosition.y + playerFontSize + underlineOffset};
+    Vector2 p1TextUnderlineEnd = {p1TextPosition.x + MeasureText(p1Text.c_str(), playerFontSize),
+                                  p1TextPosition.y + playerFontSize + underlineOffset};
+
+    DrawText(p1Text.c_str(), p1TextPosition.x, p1TextPosition.y, playerFontSize, BLACK);
+    DrawLineEx(p1TextUnderlineStart, p1TextUnderlineEnd, underlineThickness, BLACK);
+
+    // struct integers: xOffset, yOffset
+    Vector2 p1ScoreTextPosition = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 65)};
+    DrawText(TextFormat("Score: %d", p1.score), p1ScoreTextPosition.x, p1ScoreTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 p1WeightTextPosition = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 90)};
+    DrawText(TextFormat("Weight: %d/24", p1.currentWeight), p1WeightTextPosition.x, p1WeightTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 p1CurrentSquareText = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 115)};
+    DrawText(TextFormat("Current Square: %d/%d", board[p1.row][p1.col].value, board[p1.row][p1.col].weight),
+             p1CurrentSquareText.x, p1CurrentSquareText.y, playerValueFontSize, BLACK);
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
