@@ -16,7 +16,7 @@ const int FRAME_THICKNESS = 3;
 const int BOARD_OFFSET = (SCREEN_WIDTH - (BOARD_SIZE * SQUARE_SIZE) - 300) / 2;
 const int MAX_WEIGHT = 24;
 const int TABLE_WIDTH = 350;
-const int TABLE_HEIGHT = 500;
+const int TABLE_HEIGHT = 560;
 
 // board's starting position
 int startX = BOARD_OFFSET;
@@ -53,15 +53,29 @@ struct GamePiece
     }
 };
 
+struct PlayerTablePositions
+{
+    int playerLabelOffsetX;
+    int playerLabelOffsetY;
+    int playerScoreOffsetX;
+    int playerScoreOffsetY;
+    int playerWeightOffsetX;
+    int playerWeightOffsetY;
+    int playerCurrentSquareOffsetX;
+    int playerCurrentSquareOffsetY;
+};
+
 std::vector<int> values = {-4, -2, 2, 4, 6, 8};
 std::vector<int> weights = {1, 2, 3, 4};
 
 std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
+std::vector<GamePiece> pieces;
 
 const std::array<int, 8> DIRECTION_ROWS_8 = {-1, -1, -1, 0, 0, 1, 1, 1};
 const std::array<int, 8> DIRECTION_COLS_8 = {-1, 0, 1, -1, 1, -1, 0, 1};
 
-GamePiece p1 = {1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0};
+PlayerTablePositions p1Positions = {280, 25, 265, 65, 265, 90, 265, 115};
+PlayerTablePositions p2Positions = {280, 150, 265, 190, 265, 215, 265, 240};
 
 GamePiece *selectedPiece = nullptr;
 bool dragging = false;
@@ -69,6 +83,7 @@ bool dragging = false;
 // function forward declarations
 std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances);
 void randomizeVector(std::vector<int> &vector);
+
 void fillBoard(std::vector<std::vector<BoardSquare>> &board, std::vector<int> &valuesVec, std::vector<int> &weightsVec);
 void drawSquareText(int boardSquareInt, int row, int col,
                     int fontSize, int posX, int posY, int yOffset);
@@ -85,6 +100,8 @@ int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> 
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col);
 
+void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH + 200, SCREEN_HEIGHT + 200, "Tile Treasure");
@@ -97,17 +114,25 @@ int main(void)
 
     fillBoard(board, valuesVector, weightsVector);
 
+    pieces.push_back({1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0});  // player 1
+    pieces.push_back({1, 6, 25.0f, BLUE, MAX_WEIGHT, 0, 0}); // player 2
+
     while (!WindowShouldClose())
     {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             Vector2 mouse = GetMousePosition();
-            Vector2 piecePos = p1.getPosition(board[p1.row][p1.col]);
 
-            if (CheckCollisionPointCircle(mouse, piecePos, p1.radius))
+            for (auto &piece : pieces)
             {
-                selectedPiece = &p1;
-                dragging = true;
+                Vector2 piecePos = piece.getPosition(board[piece.row][piece.col]);
+
+                if (CheckCollisionPointCircle(mouse, piecePos, piece.radius))
+                {
+                    selectedPiece = &piece;
+                    dragging = true;
+                    break;
+                }
             }
         }
 
@@ -151,8 +176,13 @@ int main(void)
         drawBoardFrame();
         drawGameTable();
 
-        if (!dragging || selectedPiece != &p1)
-            drawPiece(p1, board);
+        for (auto &piece : pieces)
+        {
+            if (!dragging || selectedPiece != &piece)
+            {
+                drawPiece(piece, board);
+            }
+        }
 
         if (dragging && selectedPiece)
         {
@@ -284,33 +314,8 @@ void drawGameTable()
         (float)((TABLE_HEIGHT) + 2 * (FRAME_THICKNESS + 1))};
     DrawRectangleLinesEx(frameRect, (FRAME_THICKNESS + 1), BLACK);
 
-    // TODO: create playerTableInfo function for integers in playerPositions struct to get player x/y coordinates
-    // player information (local function variables)
-    float underlineThickness = 2.0f;
-    float underlineOffset = 3.0f;
-    int playerFontSize = 25;
-    int playerValueFontSize = 20;
-
-    // pass in playerPositions struct, player name string, player game piece
-    std::string p1Text = "Player 1";
-    Vector2 p1TextPosition = {(float)((SCREEN_WIDTH / 2) + 280), (float)(startY + 25)};
-    Vector2 p1TextUnderlineStart = {p1TextPosition.x, p1TextPosition.y + playerFontSize + underlineOffset};
-    Vector2 p1TextUnderlineEnd = {p1TextPosition.x + MeasureText(p1Text.c_str(), playerFontSize),
-                                  p1TextPosition.y + playerFontSize + underlineOffset};
-
-    DrawText(p1Text.c_str(), p1TextPosition.x, p1TextPosition.y, playerFontSize, BLACK);
-    DrawLineEx(p1TextUnderlineStart, p1TextUnderlineEnd, underlineThickness, BLACK);
-
-    // struct integers: xOffset, yOffset
-    Vector2 p1ScoreTextPosition = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 65)};
-    DrawText(TextFormat("Score: %d", p1.score), p1ScoreTextPosition.x, p1ScoreTextPosition.y, playerValueFontSize, BLACK);
-
-    Vector2 p1WeightTextPosition = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 90)};
-    DrawText(TextFormat("Weight: %d/24", p1.currentWeight), p1WeightTextPosition.x, p1WeightTextPosition.y, playerValueFontSize, BLACK);
-
-    Vector2 p1CurrentSquareText = {(float)((SCREEN_WIDTH / 2) + 265), (float)(startY + 115)};
-    DrawText(TextFormat("Current Square: %d/%d", board[p1.row][p1.col].value, board[p1.row][p1.col].weight),
-             p1CurrentSquareText.x, p1CurrentSquareText.y, playerValueFontSize, BLACK);
+    drawPlayerInformation("Player 1", p1Positions, pieces[0]);
+    drawPlayerInformation("Player 2", p2Positions, pieces[1]);
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
@@ -372,4 +377,36 @@ int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> 
     }
 
     return remainingMoves;
+}
+
+void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece)
+{
+    float underlineThickness = 2.0f;
+    float underlineOffset = 3.0f;
+    int playerFontSize = 25;
+    int playerValueFontSize = 20;
+
+    std::string playerText = player;
+    Vector2 playerTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerLabelOffsetX),
+                                  (float)(startY + playerPositions.playerLabelOffsetY)};
+    Vector2 playerTextUnderlineStart = {playerTextPosition.x, playerTextPosition.y + playerFontSize + underlineOffset};
+    Vector2 playerTextUnderlineEnd = {playerTextPosition.x + MeasureText(playerText.c_str(), playerFontSize),
+                                      playerTextPosition.y + playerFontSize + underlineOffset};
+    DrawText(playerText.c_str(), playerTextPosition.x, playerTextPosition.y, playerFontSize, BLACK);
+    DrawLineEx(playerTextUnderlineStart, playerTextUnderlineEnd, underlineThickness, BLACK);
+
+    Vector2 playerScoreTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerScoreOffsetX),
+                                       (float)(startY + playerPositions.playerScoreOffsetY)};
+    DrawText(TextFormat("Score: %d", piece.score), playerScoreTextPosition.x,
+             playerScoreTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 playerWeightTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerWeightOffsetX),
+                                        (float)(startY + playerPositions.playerWeightOffsetY)};
+    DrawText(TextFormat("Weight: %d/24", piece.currentWeight), playerWeightTextPosition.x,
+             playerWeightTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 playerCurrentSquareText = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerCurrentSquareOffsetX),
+                                       (float)(startY + playerPositions.playerCurrentSquareOffsetY)};
+    DrawText(TextFormat("Current Square: %d/%d", board[piece.row][piece.col].value, board[piece.row][piece.col].weight),
+             playerCurrentSquareText.x, playerCurrentSquareText.y, playerValueFontSize, BLACK);
 }
