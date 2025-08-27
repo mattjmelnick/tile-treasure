@@ -45,6 +45,8 @@ struct GamePiece
     int capacity;
     int currentWeight;
     int score;
+    bool currentTurn;
+    bool isActive;
 
     Vector2 getPosition(const BoardSquare &square) const
     {
@@ -70,6 +72,7 @@ std::vector<int> weights = {1, 2, 3, 4};
 
 std::vector<std::vector<BoardSquare>> board(BOARD_SIZE, std::vector<BoardSquare>(BOARD_SIZE));
 std::vector<GamePiece> pieces;
+int piecesIndex = 0;
 
 const std::array<int, 8> DIRECTION_ROWS_8 = {-1, -1, -1, 0, 0, 1, 1, 1};
 const std::array<int, 8> DIRECTION_COLS_8 = {-1, 0, 1, -1, 1, -1, 0, 1};
@@ -91,16 +94,18 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board);
 void drawBoardFrame();
 
 void drawGameTable();
+void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
 void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
+void drawDraggingPiece();
 
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col);
 
-void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
+void handleMouseInput();
 
 int main(void)
 {
@@ -114,60 +119,12 @@ int main(void)
 
     fillBoard(board, valuesVector, weightsVector);
 
-    pieces.push_back({1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0});  // player 1
-    pieces.push_back({1, 6, 25.0f, BLUE, MAX_WEIGHT, 0, 0}); // player 2
+    pieces.push_back({1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true});   // player 1
+    pieces.push_back({1, 6, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true}); // player 2
 
     while (!WindowShouldClose())
     {
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            Vector2 mouse = GetMousePosition();
-
-            for (auto &piece : pieces)
-            {
-                Vector2 piecePos = piece.getPosition(board[piece.row][piece.col]);
-
-                if (CheckCollisionPointCircle(mouse, piecePos, piece.radius))
-                {
-                    selectedPiece = &piece;
-                    dragging = true;
-                    break;
-                }
-            }
-        }
-
-        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && dragging && selectedPiece)
-        {
-            Vector2 mouse = GetMousePosition();
-
-            for (int r = 0; r < BOARD_SIZE; r++)
-            {
-                for (int c = 0; c < BOARD_SIZE; c++)
-                {
-                    BoardSquare &sq = board[r][c];
-
-                    Rectangle rect = {(float)sq.posX,
-                                      (float)sq.posY,
-                                      (float)sq.width,
-                                      (float)sq.height};
-
-                    if (CheckCollisionPointRec(mouse, rect))
-                    {
-                        bool isMovable = movePiece(*selectedPiece, board, r, c);
-
-                        if (isMovable)
-                        {
-                            int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
-                            // std::cout << remainingMoves << "\n";
-                        }
-                        break;
-                    }
-                }
-            }
-
-            selectedPiece = nullptr;
-            dragging = false;
-        }
+        handleMouseInput();
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -176,19 +133,7 @@ int main(void)
         drawBoardFrame();
         drawGameTable();
 
-        for (auto &piece : pieces)
-        {
-            if (!dragging || selectedPiece != &piece)
-            {
-                drawPiece(piece, board);
-            }
-        }
-
-        if (dragging && selectedPiece)
-        {
-            Vector2 mouse = GetMousePosition();
-            addOutline(mouse, *selectedPiece);
-        }
+        drawDraggingPiece();
 
         EndDrawing();
     }
@@ -316,13 +261,48 @@ void drawGameTable()
 
     drawPlayerInformation("Player 1", p1Positions, pieces[0]);
     drawPlayerInformation("Player 2", p2Positions, pieces[1]);
+
+    // TODO: create drawCurrentTurn box to show current player number/color
+}
+
+void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece)
+{
+    float underlineThickness = 2.0f;
+    float underlineOffset = 3.0f;
+    int playerFontSize = 25;
+    int playerValueFontSize = 20;
+
+    std::string playerText = player;
+    Vector2 playerTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerLabelOffsetX),
+                                  (float)(startY + playerPositions.playerLabelOffsetY)};
+    Vector2 playerTextUnderlineStart = {playerTextPosition.x, playerTextPosition.y + playerFontSize + underlineOffset};
+    Vector2 playerTextUnderlineEnd = {playerTextPosition.x + MeasureText(playerText.c_str(), playerFontSize),
+                                      playerTextPosition.y + playerFontSize + underlineOffset};
+    DrawText(playerText.c_str(), playerTextPosition.x, playerTextPosition.y, playerFontSize, BLACK);
+    DrawLineEx(playerTextUnderlineStart, playerTextUnderlineEnd, underlineThickness, BLACK);
+
+    Vector2 playerScoreTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerScoreOffsetX),
+                                       (float)(startY + playerPositions.playerScoreOffsetY)};
+    DrawText(TextFormat("Score: %d", piece.score), playerScoreTextPosition.x,
+             playerScoreTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 playerWeightTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerWeightOffsetX),
+                                        (float)(startY + playerPositions.playerWeightOffsetY)};
+    DrawText(TextFormat("Weight: %d/24", piece.currentWeight), playerWeightTextPosition.x,
+             playerWeightTextPosition.y, playerValueFontSize, BLACK);
+
+    Vector2 playerCurrentSquareText = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerCurrentSquareOffsetX),
+                                       (float)(startY + playerPositions.playerCurrentSquareOffsetY)};
+    DrawText(TextFormat("Current Square: %d/%d", board[piece.row][piece.col].value, board[piece.row][piece.col].weight),
+             playerCurrentSquareText.x, playerCurrentSquareText.y, playerValueFontSize, BLACK);
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
 {
     BoardSquare &destSquare = board[newRow][newCol];
 
-    if (destSquare.visited || std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
+    if (!piece.isActive || !piece.currentTurn || destSquare.visited ||
+        std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
         return false;
 
     if (!destSquare.visited && (piece.currentWeight + destSquare.weight <= piece.capacity))
@@ -356,6 +336,23 @@ void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board)
     addOutline(pos, piece);
 }
 
+void drawDraggingPiece()
+{
+    for (auto &piece : pieces)
+    {
+        if (!dragging || selectedPiece != &piece)
+        {
+            drawPiece(piece, board);
+        }
+    }
+
+    if (dragging && selectedPiece)
+    {
+        Vector2 mouse = GetMousePosition();
+        addOutline(mouse, *selectedPiece);
+    }
+}
+
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col)
@@ -379,34 +376,66 @@ int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> 
     return remainingMoves;
 }
 
-void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece)
+void handleMouseInput()
 {
-    float underlineThickness = 2.0f;
-    float underlineOffset = 3.0f;
-    int playerFontSize = 25;
-    int playerValueFontSize = 20;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        Vector2 mouse = GetMousePosition();
 
-    std::string playerText = player;
-    Vector2 playerTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerLabelOffsetX),
-                                  (float)(startY + playerPositions.playerLabelOffsetY)};
-    Vector2 playerTextUnderlineStart = {playerTextPosition.x, playerTextPosition.y + playerFontSize + underlineOffset};
-    Vector2 playerTextUnderlineEnd = {playerTextPosition.x + MeasureText(playerText.c_str(), playerFontSize),
-                                      playerTextPosition.y + playerFontSize + underlineOffset};
-    DrawText(playerText.c_str(), playerTextPosition.x, playerTextPosition.y, playerFontSize, BLACK);
-    DrawLineEx(playerTextUnderlineStart, playerTextUnderlineEnd, underlineThickness, BLACK);
+        for (auto &piece : pieces)
+        {
+            Vector2 piecePos = piece.getPosition(board[piece.row][piece.col]);
 
-    Vector2 playerScoreTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerScoreOffsetX),
-                                       (float)(startY + playerPositions.playerScoreOffsetY)};
-    DrawText(TextFormat("Score: %d", piece.score), playerScoreTextPosition.x,
-             playerScoreTextPosition.y, playerValueFontSize, BLACK);
+            if (CheckCollisionPointCircle(mouse, piecePos, piece.radius))
+            {
+                selectedPiece = &piece;
+                dragging = true;
+                break;
+            }
+        }
+    }
 
-    Vector2 playerWeightTextPosition = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerWeightOffsetX),
-                                        (float)(startY + playerPositions.playerWeightOffsetY)};
-    DrawText(TextFormat("Weight: %d/24", piece.currentWeight), playerWeightTextPosition.x,
-             playerWeightTextPosition.y, playerValueFontSize, BLACK);
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && dragging && selectedPiece)
+    {
+        Vector2 mouse = GetMousePosition();
 
-    Vector2 playerCurrentSquareText = {(float)((SCREEN_WIDTH / 2) + playerPositions.playerCurrentSquareOffsetX),
-                                       (float)(startY + playerPositions.playerCurrentSquareOffsetY)};
-    DrawText(TextFormat("Current Square: %d/%d", board[piece.row][piece.col].value, board[piece.row][piece.col].weight),
-             playerCurrentSquareText.x, playerCurrentSquareText.y, playerValueFontSize, BLACK);
+        for (int r = 0; r < BOARD_SIZE; r++)
+        {
+            for (int c = 0; c < BOARD_SIZE; c++)
+            {
+                BoardSquare &sq = board[r][c];
+
+                Rectangle rect = {(float)sq.posX,
+                                  (float)sq.posY,
+                                  (float)sq.width,
+                                  (float)sq.height};
+
+                if (CheckCollisionPointRec(mouse, rect))
+                {
+                    bool isMovable = movePiece(*selectedPiece, board, r, c);
+
+                    if (isMovable)
+                    {
+                        // TODO: create updateGameState function to check for changes after each move
+                        int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
+                        if (remainingMoves == 0)
+                            selectedPiece->isActive = false;
+                        std::cout << remainingMoves << "\n";
+
+                        pieces[piecesIndex].currentTurn = false;
+                        piecesIndex += 1;
+
+                        if (piecesIndex >= pieces.size())
+                            piecesIndex = 0;
+
+                        pieces[piecesIndex].currentTurn = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        selectedPiece = nullptr;
+        dragging = false;
+    }
 }
