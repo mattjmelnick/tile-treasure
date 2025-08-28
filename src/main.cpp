@@ -38,6 +38,7 @@ struct BoardSquare
 
 struct GamePiece
 {
+    int id;
     int row;
     int col;
     float radius;
@@ -82,12 +83,20 @@ PlayerTablePositions p2Positions = {280, 150, 265, 190, 265, 215, 265, 240};
 
 GamePiece *selectedPiece = nullptr;
 bool dragging = false;
+bool isGameOver;
 
 // function forward declarations
 std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances);
 void randomizeVector(std::vector<int> &vector);
-
 void fillBoard(std::vector<std::vector<BoardSquare>> &board, std::vector<int> &valuesVec, std::vector<int> &weightsVec);
+
+void handleMouseInput();
+bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
+int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
+                        const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
+                        int row, int col);
+bool checkGameOver();
+
 void drawSquareText(int boardSquareInt, int row, int col,
                     int fontSize, int posX, int posY, int yOffset);
 void drawBoard(std::vector<std::vector<BoardSquare>> &board);
@@ -96,16 +105,9 @@ void drawBoardFrame();
 void drawGameTable();
 void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
 
-bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
 void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
 void drawDraggingPiece();
-
-int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
-                        const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
-                        int row, int col);
-
-void handleMouseInput();
 
 int main(void)
 {
@@ -119,8 +121,9 @@ int main(void)
 
     fillBoard(board, valuesVector, weightsVector);
 
-    pieces.push_back({1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true});   // player 1
-    pieces.push_back({1, 6, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true}); // player 2
+    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true});    // player 1
+    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true}); // player 2
+    // TODO: add player 3 and player 4, test end games with different elimination orders
 
     while (!WindowShouldClose())
     {
@@ -259,10 +262,8 @@ void drawGameTable()
         (float)((TABLE_HEIGHT) + 2 * (FRAME_THICKNESS + 1))};
     DrawRectangleLinesEx(frameRect, (FRAME_THICKNESS + 1), BLACK);
 
-    drawPlayerInformation("Player 1", p1Positions, pieces[0]);
-    drawPlayerInformation("Player 2", p2Positions, pieces[1]);
-
-    // TODO: create drawCurrentTurn box to show current player number/color
+    drawPlayerInformation("Player 1 (Red)", p1Positions, pieces[0]);
+    drawPlayerInformation("Player 2 (Green)", p2Positions, pieces[1]);
 }
 
 void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece)
@@ -295,6 +296,20 @@ void drawPlayerInformation(std::string player, PlayerTablePositions &playerPosit
                                        (float)(startY + playerPositions.playerCurrentSquareOffsetY)};
     DrawText(TextFormat("Current Square: %d/%d", board[piece.row][piece.col].value, board[piece.row][piece.col].weight),
              playerCurrentSquareText.x, playerCurrentSquareText.y, playerValueFontSize, BLACK);
+
+    if (piece.currentTurn)
+    {
+        std::string turnMarker = "*";
+        switch (piece.id)
+        {
+        case 1:
+            DrawText(turnMarker.c_str(), playerTextPosition.x + 200, playerTextPosition.y, playerFontSize, BLACK);
+            break;
+        case 2:
+            DrawText(turnMarker.c_str(), playerTextPosition.x + 225, playerTextPosition.y, playerFontSize, BLACK);
+            break;
+        }
+    }
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
@@ -366,7 +381,8 @@ int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> 
         int destCol = col + DIRECTION_COLS_8[i];
 
         if (destRow >= 0 && destRow < BOARD_SIZE &&
-            destCol >= 0 && destCol < BOARD_SIZE)
+            destCol >= 0 && destCol < BOARD_SIZE &&
+            board[destRow][destCol].weight + piece.currentWeight <= piece.capacity)
         {
             legalMove = board[destRow][destCol].visited ? 0 : 1;
             remainingMoves += legalMove;
@@ -416,17 +432,25 @@ void handleMouseInput()
 
                     if (isMovable)
                     {
-                        // TODO: create updateGameState function to check for changes after each move
                         int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
+                        std::cout << remainingMoves << "\n";
                         if (remainingMoves == 0)
                             selectedPiece->isActive = false;
-                        std::cout << remainingMoves << "\n";
 
                         pieces[piecesIndex].currentTurn = false;
-                        piecesIndex += 1;
+                        // std::cout << piecesIndex << "\n";
 
-                        if (piecesIndex >= pieces.size())
-                            piecesIndex = 0;
+                        isGameOver = checkGameOver();
+                        // std::cout << isGameOver << "\n";
+
+                        if (isGameOver)
+                            break;
+
+                        do
+                        {
+                            piecesIndex = (piecesIndex + 1) % pieces.size();
+
+                        } while (pieces[piecesIndex].isActive == false);
 
                         pieces[piecesIndex].currentTurn = true;
                     }
@@ -438,4 +462,17 @@ void handleMouseInput()
         selectedPiece = nullptr;
         dragging = false;
     }
+}
+
+bool checkGameOver()
+{
+    for (const auto &piece : pieces)
+    {
+        if (piece.isActive)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
