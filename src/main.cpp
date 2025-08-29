@@ -46,7 +46,7 @@ struct GamePiece
     int capacity;
     int currentWeight;
     int score;
-    bool currentTurn;
+    bool isCurrentPlayer;
     bool isActive;
 
     Vector2 getPosition(const BoardSquare &square) const
@@ -80,6 +80,8 @@ const std::array<int, 8> DIRECTION_COLS_8 = {-1, 0, 1, -1, 1, -1, 0, 1};
 
 PlayerTablePositions p1Positions = {280, 25, 265, 65, 265, 90, 265, 115};
 PlayerTablePositions p2Positions = {280, 150, 265, 190, 265, 215, 265, 240};
+PlayerTablePositions p3Positions = {280, 275, 265, 315, 265, 340, 265, 365};
+PlayerTablePositions p4Positions = {280, 400, 265, 440, 265, 465, 265, 490};
 
 GamePiece *selectedPiece = nullptr;
 bool dragging = false;
@@ -108,6 +110,9 @@ void drawPlayerInformation(std::string player, PlayerTablePositions &playerPosit
 void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
 void drawDraggingPiece();
+// void drawGameWinner();
+
+std::vector<GamePiece> getWinningVec();
 
 int main(void)
 {
@@ -121,9 +126,10 @@ int main(void)
 
     fillBoard(board, valuesVector, weightsVector);
 
-    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true});    // player 1
-    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true}); // player 2
-    // TODO: add player 3 and player 4, test end games with different elimination orders
+    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true});     // player 1
+    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true});  // player 2
+    pieces.push_back({3, 6, 1, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true});   // player 3
+    pieces.push_back({4, 6, 6, 25.0f, YELLOW, MAX_WEIGHT, 0, 0, false, true}); // player 4
 
     while (!WindowShouldClose())
     {
@@ -264,6 +270,8 @@ void drawGameTable()
 
     drawPlayerInformation("Player 1 (Red)", p1Positions, pieces[0]);
     drawPlayerInformation("Player 2 (Green)", p2Positions, pieces[1]);
+    drawPlayerInformation("Player 3 (Blue)", p3Positions, pieces[2]);
+    drawPlayerInformation("Player 4 (Yellow)", p4Positions, pieces[3]);
 }
 
 void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece)
@@ -297,26 +305,17 @@ void drawPlayerInformation(std::string player, PlayerTablePositions &playerPosit
     DrawText(TextFormat("Current Square: %d/%d", board[piece.row][piece.col].value, board[piece.row][piece.col].weight),
              playerCurrentSquareText.x, playerCurrentSquareText.y, playerValueFontSize, BLACK);
 
-    if (piece.currentTurn)
-    {
-        std::string turnMarker = "*";
-        switch (piece.id)
-        {
-        case 1:
-            DrawText(turnMarker.c_str(), playerTextPosition.x + 200, playerTextPosition.y, playerFontSize, BLACK);
-            break;
-        case 2:
-            DrawText(turnMarker.c_str(), playerTextPosition.x + 225, playerTextPosition.y, playerFontSize, BLACK);
-            break;
-        }
-    }
+    std::string turnMarker = "*";
+
+    if (piece.isCurrentPlayer)
+        DrawText(turnMarker.c_str(), playerTextPosition.x + 225, playerTextPosition.y, playerFontSize, BLACK);
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
 {
     BoardSquare &destSquare = board[newRow][newCol];
 
-    if (!piece.isActive || !piece.currentTurn || destSquare.visited ||
+    if (!piece.isActive || !piece.isCurrentPlayer || destSquare.visited ||
         std::max(abs(newRow - piece.row), abs(newCol - piece.col)) != 1)
         return false;
 
@@ -368,12 +367,34 @@ void drawDraggingPiece()
     }
 }
 
+// void drawGameWinner(GamePiece &piece)
+// {
+//     PlayerTablePositions winningPositions;
+
+//     switch (piece.id)
+//     {
+//     case 1:
+//         winningPositions = p1Positions;
+//         break;
+//     case 2:
+//         winningPositions = p2Positions;
+//         break;
+//     case 3:
+//         winningPositions = p3Positions;
+//         break;
+//     case 4:
+//         winningPositions = p4Positions;
+//         break;
+//     }
+
+//     // std::cout << piece.id << "\n";
+// }
+
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col)
 {
     int remainingMoves = 0;
-    int legalMove = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -382,14 +403,27 @@ int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> 
 
         if (destRow >= 0 && destRow < BOARD_SIZE &&
             destCol >= 0 && destCol < BOARD_SIZE &&
-            board[destRow][destCol].weight + piece.currentWeight <= piece.capacity)
+            board[destRow][destCol].weight + piece.currentWeight <= piece.capacity &&
+            !board[destRow][destCol].visited)
         {
-            legalMove = board[destRow][destCol].visited ? 0 : 1;
-            remainingMoves += legalMove;
+            remainingMoves += 1;
         }
     }
 
     return remainingMoves;
+}
+
+bool checkGameOver()
+{
+    for (const auto &piece : pieces)
+    {
+        if (piece.isActive)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void handleMouseInput()
@@ -433,18 +467,27 @@ void handleMouseInput()
                     if (isMovable)
                     {
                         int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
-                        std::cout << remainingMoves << "\n";
+                        // std::cout << remainingMoves << "\n";
                         if (remainingMoves == 0)
                             selectedPiece->isActive = false;
 
-                        pieces[piecesIndex].currentTurn = false;
+                        pieces[piecesIndex].isCurrentPlayer = false;
                         // std::cout << piecesIndex << "\n";
 
                         isGameOver = checkGameOver();
                         // std::cout << isGameOver << "\n";
 
                         if (isGameOver)
+                        {
+                            std::vector<GamePiece> winningVec = getWinningVec();
+                            for (const GamePiece &piece : winningVec)
+                            {
+                                std::cout << piece.score << "\n";
+                                std::cout << piece.currentWeight << "\n";
+                            }
+                            // drawGameWinner(winningPiece);
                             break;
+                        }
 
                         do
                         {
@@ -452,7 +495,7 @@ void handleMouseInput()
 
                         } while (pieces[piecesIndex].isActive == false);
 
-                        pieces[piecesIndex].currentTurn = true;
+                        pieces[piecesIndex].isCurrentPlayer = true;
                     }
                     break;
                 }
@@ -464,15 +507,42 @@ void handleMouseInput()
     }
 }
 
-bool checkGameOver()
+std::vector<GamePiece> getWinningVec()
 {
-    for (const auto &piece : pieces)
+    std::vector<GamePiece> winningVec;
+    int winnerIndex;
+    int maxNum = -100;
+    int weight;
+
+    for (const GamePiece &piece : pieces)
     {
-        if (piece.isActive)
+        if (piece.score > maxNum)
         {
-            return false;
+            winnerIndex = piece.id - 1;
+            maxNum = piece.score;
+            weight = piece.currentWeight;
+
+            while (winningVec.size() > 0)
+                winningVec.pop_back();
+
+            winningVec.push_back(pieces[winnerIndex]);
+        }
+        else if (piece.score == maxNum)
+        {
+            if (piece.currentWeight < weight)
+            {
+                while (winningVec.size() > 0)
+                    winningVec.pop_back();
+
+                winningVec.push_back(pieces[winnerIndex]);
+            }
+            else if (piece.currentWeight == weight)
+                winningVec.push_back(pieces[winnerIndex]);
         }
     }
 
-    return true;
+    // std::cout << maxNum << "\n"
+    //           << winnerIndex << "\n";
+
+    return winningVec;
 }
