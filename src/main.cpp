@@ -19,8 +19,8 @@ const int TABLE_WIDTH = 350;
 const int TABLE_HEIGHT = 560;
 
 // board's starting position
-int startX = BOARD_OFFSET;
-int startY = BOARD_OFFSET;
+int startX = BOARD_OFFSET + 20;
+int startY = BOARD_OFFSET + 40;
 
 struct BoardSquare
 {
@@ -33,7 +33,7 @@ struct BoardSquare
     int value;
     int weight;
     bool visited = false;
-    Color color = BEIGE;
+    Color color;
 };
 
 struct GamePiece
@@ -93,6 +93,7 @@ bool isTie;
 std::vector<int> createIntVector(std::vector<int> &vector, int numOfInstances);
 void randomizeVector(std::vector<int> &vector);
 void fillBoard(std::vector<std::vector<BoardSquare>> &board, std::vector<int> &valuesVec, std::vector<int> &weightsVec);
+void initializeBoard();
 
 void handleMouseInput();
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
@@ -108,6 +109,7 @@ void drawBoardFrame();
 
 void drawGameTable();
 void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
+void drawResetGameButton();
 
 void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
@@ -116,22 +118,14 @@ void drawDraggingPiece();
 void setWinner();
 int countWinner();
 
+void resetGame();
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH + 200, SCREEN_HEIGHT + 200, "Tile Treasure");
     SetTargetFPS(60);
 
-    std::vector<int> valuesVector = createIntVector(values, 10);
-    std::vector<int> weightsVector = createIntVector(weights, 15);
-    randomizeVector(valuesVector);
-    randomizeVector(weightsVector);
-
-    fillBoard(board, valuesVector, weightsVector);
-
-    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true, false});     // player 1
-    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true, false});  // player 2
-    pieces.push_back({3, 6, 1, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true, false});   // player 3
-    pieces.push_back({4, 6, 6, 25.0f, YELLOW, MAX_WEIGHT, 0, 0, false, true, false}); // player 4
+    initializeBoard();
 
     while (!WindowShouldClose())
     {
@@ -194,18 +188,46 @@ void fillBoard(std::vector<std::vector<BoardSquare>> &board,
                 (row == 6 && col == 6))
             {
                 board[row][col].visited = true;
+                board[row][col].color = BEIGE;
+
+                int posX = startX + (col * SQUARE_SIZE);
+                int posY = startY + (row * SQUARE_SIZE);
+
+                board[row][col].posX = posX;
+                board[row][col].posY = posY;
                 continue;
             }
 
+            int posX = startX + (col * SQUARE_SIZE);
+            int posY = startY + (row * SQUARE_SIZE);
+
+            board[row][col].posX = posX;
+            board[row][col].posY = posY;
             board[row][col].row = row;
             board[row][col].col = col;
             board[row][col].value = valuesVec[valuesIndex];
             board[row][col].weight = weightsVec[weightsIndex];
+            board[row][col].color = BEIGE;
 
             valuesIndex++;
             weightsIndex++;
         }
     }
+}
+
+void initializeBoard()
+{
+    std::vector<int> valuesVector = createIntVector(values, 10);
+    std::vector<int> weightsVector = createIntVector(weights, 15);
+    randomizeVector(valuesVector);
+    randomizeVector(weightsVector);
+
+    fillBoard(board, valuesVector, weightsVector);
+
+    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true, false});     // player 1
+    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true, false});  // player 2
+    pieces.push_back({3, 6, 1, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true, false});   // player 3
+    pieces.push_back({4, 6, 6, 25.0f, YELLOW, MAX_WEIGHT, 0, 0, false, true, false}); // player 4
 }
 
 void drawSquareText(int boardSquareInt, int row, int col,
@@ -229,21 +251,15 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board)
     {
         for (int col = 0; col < BOARD_SIZE; col++)
         {
-            int posX = startX + (col * SQUARE_SIZE);
-            int posY = startY + (row * SQUARE_SIZE);
-
-            board[row][col].posX = posX;
-            board[row][col].posY = posY;
-
             // draw the square and add a border
-            DrawRectangle(posX, posY, SQUARE_SIZE, SQUARE_SIZE, board[row][col].color);
-            DrawRectangleLinesEx((Rectangle){(float)posX, (float)posY, (float)SQUARE_SIZE, (float)SQUARE_SIZE}, BORDER_WIDTH, BLACK);
+            DrawRectangle(board[row][col].posX, board[row][col].posY, SQUARE_SIZE, SQUARE_SIZE, board[row][col].color);
+            DrawRectangleLinesEx((Rectangle){(float)board[row][col].posX, (float)board[row][col].posY, (float)SQUARE_SIZE, (float)SQUARE_SIZE}, BORDER_WIDTH, BLACK);
 
             // add value text to the squares
-            drawSquareText(board[row][col].value, row, col, 30, posX, posY, 20);
+            drawSquareText(board[row][col].value, row, col, 30, board[row][col].posX, board[row][col].posY, 20);
 
             // add weight text to the squares
-            drawSquareText(board[row][col].weight, row, col, 20, posX, posY, -10);
+            drawSquareText(board[row][col].weight, row, col, 20, board[row][col].posX, board[row][col].posY, -10);
         }
     }
 }
@@ -318,7 +334,30 @@ void drawPlayerInformation(std::string player, PlayerTablePositions &playerPosit
     {
         turnMarker = isTie ? "TIE" : "WINS";
         DrawText(turnMarker.c_str(), playerTextPosition.x + 225, playerTextPosition.y, playerFontSize, BLACK);
+        drawResetGameButton();
     }
+}
+
+void drawResetGameButton()
+{
+    Rectangle resetGameButton = {270, 700, 200, 50};
+    std::string resetGameText = "RESET GAME";
+    Vector2 textSize = MeasureTextEx(GetFontDefault(), resetGameText.c_str(), 20, 0);
+
+    float resetGameTextX = resetGameButton.x + ((resetGameButton.width - textSize.x) / 2.0f) - 8;
+    float resetGameTextY = resetGameButton.y + (resetGameButton.height - textSize.y) / 2.0f;
+    Color resetGameButtonColor = ORANGE;
+
+    if (CheckCollisionPointRec(GetMousePosition(), resetGameButton))
+    {
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
+        {
+            resetGame();
+        }
+    }
+
+    DrawRectangleRec(resetGameButton, resetGameButtonColor);
+    DrawText(resetGameText.c_str(), (int)resetGameTextX, (int)resetGameTextY, 20, BLACK);
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
@@ -454,20 +493,19 @@ void handleMouseInput()
                     if (isMovable)
                     {
                         int remainingMoves = checkRemainingMoves(*selectedPiece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, r, c);
-                        // std::cout << remainingMoves << "\n";
+
                         if (remainingMoves == 0)
                             selectedPiece->isActive = false;
 
                         pieces[piecesIndex].isCurrentPlayer = false;
-                        // std::cout << piecesIndex << "\n";
 
                         isGameOver = checkGameOver();
-                        // std::cout << isGameOver << "\n";
 
                         if (isGameOver)
                         {
                             setWinner();
                             int winnerCount = countWinner();
+
                             if (winnerCount > 1)
                                 isTie = true;
                             break;
@@ -529,4 +567,15 @@ int countWinner()
                                     });
 
     return winnerCount;
+}
+
+void resetGame()
+{
+    selectedPiece = nullptr;
+    dragging = false;
+    isGameOver = false;
+    isTie = false;
+    piecesIndex = 0;
+    pieces.clear();
+    initializeBoard();
 }
