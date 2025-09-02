@@ -46,6 +46,7 @@ struct GamePiece
     int capacity;
     int currentWeight;
     int score;
+    bool isComputer;
     bool isCurrentPlayer;
     bool isActive;
     bool isWinner;
@@ -95,8 +96,11 @@ void randomizeVector(std::vector<int> &vector);
 void fillBoard(std::vector<std::vector<BoardSquare>> &board, std::vector<int> &valuesVec, std::vector<int> &weightsVec);
 void initializeBoard();
 
-void handleMouseInput();
+void handleMouseInput(GamePiece &piece);
+bool isValidMove(int row, int col, GamePiece &piece);
+void makeCPUMove(GamePiece &piece);
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
+void finishTurn();
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col);
@@ -109,7 +113,7 @@ void drawBoardFrame();
 
 void drawGameTable();
 void drawPlayerInformation(std::string player, PlayerTablePositions &playerPositions, GamePiece &piece);
-void drawResetGameButton();
+void drawNewGameButton();
 
 void addOutline(Vector2 position, GamePiece &piece);
 void drawPiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board);
@@ -120,7 +124,7 @@ int countWinner();
 
 void resetGame();
 
-int main(void)
+int main()
 {
     InitWindow(SCREEN_WIDTH + 200, SCREEN_HEIGHT + 200, "Tile Treasure");
     SetTargetFPS(60);
@@ -129,7 +133,20 @@ int main(void)
 
     while (!WindowShouldClose())
     {
-        handleMouseInput();
+        if (!isGameOver)
+        {
+            GamePiece &current = pieces[piecesIndex];
+
+            if (current.isCurrentPlayer && !current.isComputer)
+            {
+                handleMouseInput(current);
+            }
+            else
+            {
+                makeCPUMove(current);
+                finishTurn();
+            }
+        }
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -224,10 +241,10 @@ void initializeBoard()
 
     fillBoard(board, valuesVector, weightsVector);
 
-    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, true, true, false});     // player 1
-    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, false, true, false});  // player 2
-    pieces.push_back({3, 6, 1, 25.0f, BLUE, MAX_WEIGHT, 0, 0, false, true, false});   // player 3
-    pieces.push_back({4, 6, 6, 25.0f, YELLOW, MAX_WEIGHT, 0, 0, false, true, false}); // player 4
+    pieces.push_back({1, 1, 1, 25.0f, RED, MAX_WEIGHT, 0, 0, false, true, true, false});    // player 1
+    pieces.push_back({2, 1, 6, 25.0f, GREEN, MAX_WEIGHT, 0, 0, true, false, true, false});  // player 2
+    pieces.push_back({3, 6, 1, 25.0f, BLUE, MAX_WEIGHT, 0, 0, true, false, true, false});   // player 3
+    pieces.push_back({4, 6, 6, 25.0f, YELLOW, MAX_WEIGHT, 0, 0, true, false, true, false}); // player 4
 }
 
 void drawSquareText(int boardSquareInt, int row, int col,
@@ -334,21 +351,22 @@ void drawPlayerInformation(std::string player, PlayerTablePositions &playerPosit
     {
         turnMarker = isTie ? "TIE" : "WINS";
         DrawText(turnMarker.c_str(), playerTextPosition.x + 225, playerTextPosition.y, playerFontSize, BLACK);
-        drawResetGameButton();
+        drawNewGameButton();
     }
 }
 
-void drawResetGameButton()
+void drawNewGameButton()
 {
-    Rectangle resetGameButton = {270, 700, 200, 50};
-    std::string resetGameText = "RESET GAME";
-    Vector2 textSize = MeasureTextEx(GetFontDefault(), resetGameText.c_str(), 20, 0);
+    Rectangle newGameButton = {280, 700, 180, 50};
+    std::string newGameText = "NEW GAME";
+    Vector2 newGameTextSize = MeasureTextEx(GetFontDefault(), newGameText.c_str(), 20, 0);
+    int newGameTextWidth = MeasureText(newGameText.c_str(), 20);
 
-    float resetGameTextX = resetGameButton.x + ((resetGameButton.width - textSize.x) / 2.0f) - 8;
-    float resetGameTextY = resetGameButton.y + (resetGameButton.height - textSize.y) / 2.0f;
-    Color resetGameButtonColor = ORANGE;
+    int newGameTextX = newGameButton.x + (newGameButton.width / 2) - (newGameTextWidth / 2);
+    int newGameTextY = newGameButton.y + (newGameButton.height / 2) - (newGameTextSize.y / 2);
+    Color newGameButtonColor = ORANGE;
 
-    if (CheckCollisionPointRec(GetMousePosition(), resetGameButton))
+    if (CheckCollisionPointRec(GetMousePosition(), newGameButton))
     {
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
         {
@@ -356,8 +374,74 @@ void drawResetGameButton()
         }
     }
 
-    DrawRectangleRec(resetGameButton, resetGameButtonColor);
-    DrawText(resetGameText.c_str(), (int)resetGameTextX, (int)resetGameTextY, 20, BLACK);
+    DrawRectangleRec(newGameButton, newGameButtonColor);
+    DrawText(newGameText.c_str(), newGameTextX, newGameTextY, 20, BLACK);
+}
+
+bool isValidMove(int row, int col, GamePiece &piece)
+{
+    if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE)
+        return false;
+
+    int dr = abs(row - piece.row);
+    int dc = abs(col - piece.col);
+
+    if (dr > 1 || dc > 1)
+        return false;
+
+    for (auto &p : pieces)
+    {
+        if (&p != &piece && p.row == row && p.col == col)
+            return false;
+    }
+
+    return true;
+}
+
+void makeCPUMove(GamePiece &piece)
+{
+    std::vector<std::pair<int, int>> legalMoves;
+    for (int dr = -1; dr <= 1; dr++)
+    {
+        for (int dc = -1; dc <= 1; dc++)
+        {
+            if (dr == 0 && dc == 0)
+                continue;
+
+            int newRow = piece.row + dr;
+            int newCol = piece.col + dc;
+
+            if (isValidMove(newRow, newCol, piece))
+            {
+                legalMoves.push_back({newRow, newCol});
+            }
+        }
+    }
+
+    for (auto &p : legalMoves)
+    {
+        std::cout << p.first << " " << p.second << "\n";
+    }
+
+    // TODO: figure out why CPUs don't move on every turn - appears to be random
+
+    if (!legalMoves.empty())
+    {
+        int choice = GetRandomValue(0, (int)legalMoves.size() - 1);
+        int newRow = legalMoves[choice].first;
+        int newCol = legalMoves[choice].second;
+
+        bool isMovable = movePiece(piece, board, newRow, newCol);
+
+        if (isMovable)
+        {
+            int remainingMoves = checkRemainingMoves(piece, board, DIRECTION_ROWS_8, DIRECTION_COLS_8, newRow, newCol);
+
+            if (remainingMoves == 0)
+                selectedPiece->isActive = false;
+        }
+        legalMoves.clear();
+    }
 }
 
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol)
@@ -416,6 +500,32 @@ void drawDraggingPiece()
     }
 }
 
+void finishTurn()
+{
+    pieces[piecesIndex].isCurrentPlayer = false;
+
+    isGameOver = checkGameOver();
+
+    if (isGameOver)
+    {
+        setWinner();
+        int winnerCount = countWinner();
+
+        if (winnerCount > 1)
+            isTie = true;
+
+        return;
+    }
+
+    do
+    {
+        piecesIndex = (piecesIndex + 1) % pieces.size();
+
+    } while (pieces[piecesIndex].isActive == false);
+
+    pieces[piecesIndex].isCurrentPlayer = true;
+}
+
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board,
                         const std::array<int, 8> &DIRECTION_ROWS_8, const std::array<int, 8> &DIRECTION_COLS_8,
                         int row, int col)
@@ -452,22 +562,17 @@ bool checkGameOver()
     return true;
 }
 
-void handleMouseInput()
+void handleMouseInput(GamePiece &piece)
 {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         Vector2 mouse = GetMousePosition();
+        Vector2 piecePos = piece.getPosition(board[piece.row][piece.col]);
 
-        for (auto &piece : pieces)
+        if (piece.isCurrentPlayer && CheckCollisionPointCircle(mouse, piecePos, piece.radius))
         {
-            Vector2 piecePos = piece.getPosition(board[piece.row][piece.col]);
-
-            if (CheckCollisionPointCircle(mouse, piecePos, piece.radius))
-            {
-                selectedPiece = &piece;
-                dragging = true;
-                break;
-            }
+            selectedPiece = &piece;
+            dragging = true;
         }
     }
 
@@ -497,35 +602,14 @@ void handleMouseInput()
                         if (remainingMoves == 0)
                             selectedPiece->isActive = false;
 
-                        pieces[piecesIndex].isCurrentPlayer = false;
-
-                        isGameOver = checkGameOver();
-
-                        if (isGameOver)
-                        {
-                            setWinner();
-                            int winnerCount = countWinner();
-
-                            if (winnerCount > 1)
-                                isTie = true;
-                            break;
-                        }
-
-                        do
-                        {
-                            piecesIndex = (piecesIndex + 1) % pieces.size();
-
-                        } while (pieces[piecesIndex].isActive == false);
-
-                        pieces[piecesIndex].isCurrentPlayer = true;
+                        finishTurn();
                     }
-                    break;
+                    selectedPiece = nullptr;
+                    dragging = false;
+                    return;
                 }
             }
         }
-
-        selectedPiece = nullptr;
-        dragging = false;
     }
 }
 
