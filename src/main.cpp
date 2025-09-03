@@ -127,6 +127,10 @@ int main()
 
     initializeBoard();
 
+    bool cpuThinking = false;
+    double cpuStartTime = 0.0;
+    double cpuDelay = 0.5;
+
     while (!WindowShouldClose())
     {
         if (!isGameOver)
@@ -139,8 +143,21 @@ int main()
             }
             else
             {
-                makeCPUMove(current);
-                finishTurn();
+                if (!cpuThinking)
+                {
+                    cpuThinking = true;
+                    cpuStartTime = GetTime();
+                }
+                else
+                {
+                    if (GetTime() - cpuStartTime >= cpuDelay)
+                    {
+                        makeCPUMove(current);
+                        finishTurn();
+
+                        cpuThinking = false;
+                    }
+                }
             }
         }
 
