@@ -97,8 +97,8 @@ void fillBoard(std::vector<std::vector<BoardSquare>> &board, std::vector<int> &v
 void initializeBoard();
 
 void handleMouseInput(GamePiece &piece);
-bool isValidMove(int row, int col, GamePiece &piece);
 void makeCPUMove(GamePiece &piece);
+std::pair<int, int> getBestMoveCoords(std::vector<std::pair<int, int>> legalMoves);
 bool movePiece(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int newRow, int newCol);
 void finishTurn();
 int checkRemainingMoves(GamePiece &piece, std::vector<std::vector<BoardSquare>> &board, int row, int col);
@@ -310,15 +310,37 @@ void handleMouseInput(GamePiece &piece)
     }
 }
 
-bool isValidMove(int row, int col, GamePiece &piece)
+std::pair<int, int> getBestMoveCoords(std::vector<std::pair<int, int>> legalMoves)
 {
-    if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE)
-        return false;
+    int maxValue = -10;
+    int minWeight = 5;
+    std::pair<int, int> bestMoveCoords;
 
-    if (board[row][col].visited)
-        return false;
+    for (auto pair : legalMoves)
+    {
+        std::cout << pair.first << " " << pair.second << "\n";
+        int boardValue = board[pair.first][pair.second].value;
+        int boardWeight = board[pair.first][pair.second].weight;
 
-    return true;
+        if (boardValue >= maxValue && boardWeight <= minWeight)
+        {
+            maxValue = boardValue;
+            minWeight = boardWeight;
+        }
+        else if (boardValue > maxValue)
+        {
+            maxValue = boardValue;
+            minWeight = boardWeight;
+        }
+    }
+
+    for (auto pair : legalMoves)
+    {
+        if (board[pair.first][pair.second].value == maxValue && board[pair.first][pair.second].weight == minWeight)
+            bestMoveCoords = {pair.first, pair.second};
+    }
+
+    return bestMoveCoords;
 }
 
 void makeCPUMove(GamePiece &piece)
@@ -342,8 +364,13 @@ void makeCPUMove(GamePiece &piece)
         return;
     }
 
-    int choice = (legalMoves.size() == 1) ? 0 : GetRandomValue(0, legalMoves.size() - 1);
-    auto [newRow, newCol] = legalMoves[choice];
+    auto bestVal = getBestMoveCoords(legalMoves);
+    std::cout << board[bestVal.first][bestVal.second].value << " " << board[bestVal.first][bestVal.second].weight << "\n";
+
+    // int choice = (legalMoves.size() == 1) ? 0 : GetRandomValue(0, legalMoves.size() - 1);
+    // auto [newRow, newCol] = legalMoves[choice];
+    int newRow = bestVal.first;
+    int newCol = bestVal.second;
 
     bool isMovable = movePiece(piece, board, newRow, newCol);
 
