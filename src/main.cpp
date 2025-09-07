@@ -2,6 +2,7 @@
 #include "include/raymath.h"
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <algorithm>
 #include <random>
@@ -536,9 +537,9 @@ void drawBoard(std::vector<std::vector<BoardSquare>> &board)
             // draw the square and add a border
             DrawRectangle(board[row][col].posX, board[row][col].posY,
                           SQUARE_SIZE, SQUARE_SIZE, board[row][col].color);
-            DrawRectangleLinesEx((Rectangle){(float)board[row][col].posX,
-                                             (float)board[row][col].posY,
-                                             (float)SQUARE_SIZE, (float)SQUARE_SIZE},
+            DrawRectangleLinesEx(Rectangle{(float)board[row][col].posX,
+                                           (float)board[row][col].posY,
+                                           (float)SQUARE_SIZE, (float)SQUARE_SIZE},
                                  BORDER_WIDTH, BLACK);
 
             // add value text to the squares
