@@ -1,5 +1,5 @@
-#include "raylib.h"
-#include "raymath.h"
+#include "include/raylib.h"
+#include "include/raymath.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -318,7 +318,6 @@ std::pair<int, int> getBestMoveCoords(std::vector<std::pair<int, int>> legalMove
 
     for (auto pair : legalMoves)
     {
-        std::cout << pair.first << " " << pair.second << "\n";
         int boardValue = board[pair.first][pair.second].value;
         int boardWeight = board[pair.first][pair.second].weight;
 
@@ -365,7 +364,6 @@ void makeCPUMove(GamePiece &piece)
     }
 
     auto bestVal = getBestMoveCoords(legalMoves);
-    std::cout << board[bestVal.first][bestVal.second].value << " " << board[bestVal.first][bestVal.second].weight << "\n";
 
     // int choice = (legalMoves.size() == 1) ? 0 : GetRandomValue(0, legalMoves.size() - 1);
     // auto [newRow, newCol] = legalMoves[choice];
