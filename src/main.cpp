@@ -322,22 +322,17 @@ std::pair<int, int> getBestMoveCoords(std::vector<std::pair<int, int>> legalMove
         int boardValue = board[pair.first][pair.second].value;
         int boardWeight = board[pair.first][pair.second].weight;
 
-        if (boardValue >= maxValue && boardWeight <= minWeight)
+        if (boardValue == maxValue && boardWeight <= minWeight)
         {
-            maxValue = boardValue;
             minWeight = boardWeight;
+            bestMoveCoords = {pair.first, pair.second};
         }
         else if (boardValue > maxValue)
         {
             maxValue = boardValue;
             minWeight = boardWeight;
-        }
-    }
-
-    for (auto pair : legalMoves)
-    {
-        if (board[pair.first][pair.second].value == maxValue && board[pair.first][pair.second].weight == minWeight)
             bestMoveCoords = {pair.first, pair.second};
+        }
     }
 
     return bestMoveCoords;
